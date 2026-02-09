@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+
+# Rust
+/target
+Cargo.lock
+
+# WASM
+*.wasm
+pkg/
+
+# Node (tailwind)
+node_modules/
+
+# Data
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Models (large binaries)
+*.mlmodel
+*.mlpackage
+*.mlmodelc
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# SwiftPM
+.build/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Serena
+.serena/
