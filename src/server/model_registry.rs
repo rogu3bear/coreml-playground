@@ -188,11 +188,17 @@ impl ModelRegistry {
         };
 
         if let Err(err) = watcher.watch(&self.models_dir, RecursiveMode::NonRecursive) {
-            leptos::logging::log!("[registry] failed to watch {}: {err}", self.models_dir.display());
+            leptos::logging::log!(
+                "[registry] failed to watch {}: {err}",
+                self.models_dir.display()
+            );
             return;
         }
 
-        leptos::logging::log!("[registry] watching {} for changes", self.models_dir.display());
+        leptos::logging::log!(
+            "[registry] watching {} for changes",
+            self.models_dir.display()
+        );
 
         let registry = self.clone();
         // Debounce rapid events by coalescing into 500ms windows.
@@ -409,10 +415,11 @@ impl ModelRegistry {
     /// Called after scanning / building mock models so the echo demo is
     /// always reachable by the inference pipeline.
     fn ensure_demo_model(map: &mut HashMap<String, RegisteredModel>) {
-        map.entry("demo-echo".to_string()).or_insert_with(|| RegisteredModel {
-            info: Self::create_demo_model(),
-            path: PathBuf::from("/builtin/demo-echo"),
-        });
+        map.entry("demo-echo".to_string())
+            .or_insert_with(|| RegisteredModel {
+                info: Self::create_demo_model(),
+                path: PathBuf::from("/builtin/demo-echo"),
+            });
     }
 
     // -- Mock data for development ------------------------------------------

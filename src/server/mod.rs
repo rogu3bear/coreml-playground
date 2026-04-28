@@ -12,8 +12,8 @@ pub mod interpreter;
 #[cfg(feature = "ssr")]
 pub mod inference;
 #[cfg(feature = "ssr")]
-pub mod model_registry;
-#[cfg(feature = "ssr")]
 pub mod middleware;
+#[cfg(feature = "ssr")]
+pub mod model_registry;
 #[cfg(feature = "ssr")]
 pub mod session_store;

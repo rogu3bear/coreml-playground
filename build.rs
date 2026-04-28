@@ -35,7 +35,8 @@ fn main() {
     }
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
+    let manifest_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
     let swift_source = manifest_dir.join("swift").join("CoreMLBridge.swift");
 
     // Ensure the Swift source file exists.
@@ -141,7 +142,11 @@ fn main() {
     // Create a static library from the object file.
     let lib_path = out_dir.join("libcoreml_bridge.a");
     let ar_status = match Command::new("ar")
-        .args(["rcs", lib_path.to_str().unwrap(), object_path.to_str().unwrap()])
+        .args([
+            "rcs",
+            lib_path.to_str().unwrap(),
+            object_path.to_str().unwrap(),
+        ])
         .status()
     {
         Ok(s) => s,
@@ -173,10 +178,7 @@ fn main() {
     }
 
     // Also check the platform-specific lib directory inside the SDK.
-    let sdk_swift_lib = PathBuf::from(&sdk)
-        .join("usr")
-        .join("lib")
-        .join("swift");
+    let sdk_swift_lib = PathBuf::from(&sdk).join("usr").join("lib").join("swift");
     if sdk_swift_lib.exists() {
         println!("cargo:rustc-link-search=native={}", sdk_swift_lib.display());
     }

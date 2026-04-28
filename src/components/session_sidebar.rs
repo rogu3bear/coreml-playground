@@ -72,9 +72,8 @@ fn SessionRow(
 
     // -- Rename logic --
     let sid_for_rename_check = session_id.clone();
-    let is_renaming = Signal::derive(move || {
-        renaming_id.get().as_deref() == Some(sid_for_rename_check.as_str())
-    });
+    let is_renaming =
+        Signal::derive(move || renaming_id.get().as_deref() == Some(sid_for_rename_check.as_str()));
 
     // Start rename on double-click.
     let sid_for_dblclick = session_id.clone();
@@ -206,7 +205,7 @@ fn SessionRow(
                                             Effect::new(move || {
                                                 if let Some(el) = node_ref.get() {
                                                     let _ = el.focus();
-                                                    let _ = el.select();
+                                                    el.select();
                                                 }
                                             });
                                             node_ref

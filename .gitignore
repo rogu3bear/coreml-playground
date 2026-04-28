@@ -13,6 +13,7 @@ pkg/
 node_modules/
 
 # Data
+var/
 data/
 *.db
 *.db-wal

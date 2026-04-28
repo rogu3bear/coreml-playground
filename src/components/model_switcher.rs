@@ -45,10 +45,7 @@ fn badge_classes_active(model_type: &ModelType) -> &'static str {
 
 /// A small colored badge showing the model type label.
 #[component]
-fn TypeBadge(
-    model_type: ModelType,
-    #[prop(optional)] active: bool,
-) -> impl IntoView {
+fn TypeBadge(model_type: ModelType, #[prop(optional)] active: bool) -> impl IntoView {
     let classes = if active {
         badge_classes_active(&model_type)
     } else {
@@ -165,14 +162,17 @@ pub fn ModelLens() -> impl IntoView {
         use_context::<ReadSignal<Option<ModelInfo>>>().expect("active_model context");
     let set_active_model =
         use_context::<WriteSignal<Option<ModelInfo>>>().expect("set_active_model context");
-    let set_show_introspection =
-        use_context::<crate::types::SetShowIntrospection>().expect("SetShowIntrospection context").0;
+    let set_show_introspection = use_context::<crate::types::SetShowIntrospection>()
+        .expect("SetShowIntrospection context")
+        .0;
 
     // Wire up the Cmd+K model_picker_open context signal from app.rs
-    let picker_open_read =
-        use_context::<crate::types::ModelPickerOpen>().expect("ModelPickerOpen context").0;
-    let picker_open_write =
-        use_context::<crate::types::SetModelPickerOpen>().expect("SetModelPickerOpen context").0;
+    let picker_open_read = use_context::<crate::types::ModelPickerOpen>()
+        .expect("ModelPickerOpen context")
+        .0;
+    let picker_open_write = use_context::<crate::types::SetModelPickerOpen>()
+        .expect("SetModelPickerOpen context")
+        .0;
 
     let (dropdown_open, set_dropdown_open) = signal(false);
     let (loading_model, set_loading_model) = signal::<Option<String>>(None);
@@ -205,9 +205,10 @@ pub fn ModelLens() -> impl IntoView {
         }
     }
 
-    let models = Resource::new(|| (), |_| async move {
-        list_models().await.unwrap_or_default()
-    });
+    let models = Resource::new(
+        || (),
+        |_| async move { list_models().await.unwrap_or_default() },
+    );
 
     // Derive a signal from loading_model for passing into ModelCard
     let loading_id_signal: Signal<Option<String>> = loading_model.into();

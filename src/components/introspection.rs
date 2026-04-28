@@ -160,10 +160,7 @@ fn PortBadge(port: PortInfo) -> impl IntoView {
 
 /// A section header for the port lists.
 #[component]
-fn PortSection(
-    title: &'static str,
-    ports: Vec<PortInfo>,
-) -> impl IntoView {
+fn PortSection(title: &'static str, ports: Vec<PortInfo>) -> impl IntoView {
     view! {
         <div class="space-y-2">
             <h4 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">{title}</h4>
@@ -302,12 +299,18 @@ fn FeedbackSection(model_id: String) -> impl IntoView {
 /// when `show_introspection` context signal is true.
 #[component]
 pub fn IntrospectionPanel() -> impl IntoView {
-    let show = use_context::<crate::types::ShowIntrospection>().expect("ShowIntrospection context").0;
-    let set_show = use_context::<crate::types::SetShowIntrospection>().expect("SetShowIntrospection context").0;
+    let show = use_context::<crate::types::ShowIntrospection>()
+        .expect("ShowIntrospection context")
+        .0;
+    let set_show = use_context::<crate::types::SetShowIntrospection>()
+        .expect("SetShowIntrospection context")
+        .0;
     let active_model =
         use_context::<ReadSignal<Option<ModelInfo>>>().expect("active_model context");
 
-    let last_inference_ms = use_context::<crate::types::LastInferenceMs>().expect("LastInferenceMs context").0;
+    let last_inference_ms = use_context::<crate::types::LastInferenceMs>()
+        .expect("LastInferenceMs context")
+        .0;
 
     view! {
         {move || {

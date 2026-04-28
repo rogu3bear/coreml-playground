@@ -18,18 +18,14 @@ fn CopyButton(text: String) -> impl IntoView {
         let value = text_for_click.clone();
         cfg_if::cfg_if! {
             if #[cfg(feature = "hydrate")] {
-                let set_copied = set_copied.clone();
                 if let Some(window) = web_sys::window() {
                     let clipboard = window.navigator().clipboard();
                     let promise = clipboard.write_text(&value);
-                    let _ = wasm_bindgen_futures::JsFuture::from(promise);
+                    drop(wasm_bindgen_futures::JsFuture::from(promise));
                     set_copied.set(true);
-                    leptos::task::spawn_local({
-                        let set_copied = set_copied.clone();
-                        async move {
-                            gloo_timers::future::TimeoutFuture::new(1500).await;
-                            set_copied.set(false);
-                        }
+                    leptos::task::spawn_local(async move {
+                        gloo_timers::future::TimeoutFuture::new(1500).await;
+                        set_copied.set(false);
                     });
                 }
             } else {
@@ -70,26 +66,21 @@ fn CopyButton(text: String) -> impl IntoView {
 fn copyable_text(content: &MessageContent) -> String {
     match content {
         MessageContent::Text(s) => s.clone(),
-        MessageContent::Image { caption, .. } => {
-            caption.clone().unwrap_or_default()
-        }
+        MessageContent::Image { caption, .. } => caption.clone().unwrap_or_default(),
         MessageContent::ModelOutput(value) => {
-            serde_json::to_string_pretty(value)
-                .unwrap_or_else(|_| value.to_string())
+            serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
         }
         MessageContent::Streaming { partial, .. } => partial.clone(),
-        MessageContent::Batch(items) => {
-            items
-                .iter()
-                .enumerate()
-                .map(|(i, item)| {
-                    let json = serde_json::to_string_pretty(&item.output)
-                        .unwrap_or_else(|_| item.output.to_string());
-                    format!("Image {}: {}", i + 1, json)
-                })
-                .collect::<Vec<_>>()
-                .join("\n\n")
-        }
+        MessageContent::Batch(items) => items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                let json = serde_json::to_string_pretty(&item.output)
+                    .unwrap_or_else(|_| item.output.to_string());
+                format!("Image {}: {}", i + 1, json)
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n"),
     }
 }
 
@@ -301,33 +292,28 @@ fn EmptyState() -> impl IntoView {
     };
 
     let example_prompts = move || {
-        active_model.get().map(|m| {
-            match m.model_type {
-                ModelType::Text => vec![
-                    "Summarize this text for me...",
-                    "Translate the following paragraph...",
-                    "What is the sentiment of this review?",
-                ],
-                ModelType::Vision => vec![
-                    "Describe what you see in this image",
-                    "Classify the objects in this photo",
-                    "What breed of dog is this?",
-                ],
-                ModelType::Multimodal => vec![
-                    "Describe this image in detail",
-                    "What text do you see in this photo?",
-                    "Answer a question about this image...",
-                ],
-                ModelType::Audio => vec![
-                    "Transcribe this audio clip",
-                    "What language is being spoken?",
-                    "Classify the sound in this recording",
-                ],
-                ModelType::Unknown => vec![
-                    "Send a prompt to the model",
-                    "Try an example input",
-                ],
-            }
+        active_model.get().map(|m| match m.model_type {
+            ModelType::Text => vec![
+                "Summarize this text for me...",
+                "Translate the following paragraph...",
+                "What is the sentiment of this review?",
+            ],
+            ModelType::Vision => vec![
+                "Describe what you see in this image",
+                "Classify the objects in this photo",
+                "What breed of dog is this?",
+            ],
+            ModelType::Multimodal => vec![
+                "Describe this image in detail",
+                "What text do you see in this photo?",
+                "Answer a question about this image...",
+            ],
+            ModelType::Audio => vec![
+                "Transcribe this audio clip",
+                "What language is being spoken?",
+                "Classify the sound in this recording",
+            ],
+            ModelType::Unknown => vec!["Send a prompt to the model", "Try an example input"],
         })
     };
 
@@ -404,12 +390,8 @@ fn MessageItem(message: ChatMessage) -> impl IntoView {
     let is_image = matches!(message.content, MessageContent::Image { .. });
 
     match role {
-        MessageRole::User if is_image => {
-            view! { <UserImageBubble message=message /> }.into_any()
-        }
-        MessageRole::User => {
-            view! { <UserBubble message=message /> }.into_any()
-        }
+        MessageRole::User if is_image => view! { <UserImageBubble message=message /> }.into_any(),
+        MessageRole::User => view! { <UserBubble message=message /> }.into_any(),
         MessageRole::Model | MessageRole::System => {
             view! { <ModelBubble message=message /> }.into_any()
         }
@@ -425,8 +407,9 @@ fn MessageItem(message: ChatMessage) -> impl IntoView {
 pub fn ChatView() -> impl IntoView {
     let active_session_id =
         use_context::<ReadSignal<Option<String>>>().expect("active_session_id context");
-    let session_version =
-        use_context::<crate::types::SessionVersion>().expect("SessionVersion context").0;
+    let session_version = use_context::<crate::types::SessionVersion>()
+        .expect("SessionVersion context")
+        .0;
 
     // Fetch messages when session changes (or when version bumps after sending)
     let messages = Resource::new(

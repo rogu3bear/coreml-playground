@@ -32,8 +32,7 @@ impl SessionStore {
                 .map_err(|e| format!("cannot create db directory: {e}"))?;
         }
 
-        let conn =
-            Connection::open(db_path).map_err(|e| format!("cannot open database: {e}"))?;
+        let conn = Connection::open(db_path).map_err(|e| format!("cannot open database: {e}"))?;
 
         // Enable WAL mode for better concurrent read performance.
         conn.execute_batch("PRAGMA journal_mode=WAL;")
@@ -76,7 +75,9 @@ impl SessionStore {
 
         // Add display_name column for user-defined session names (idempotent).
         let has_display_name: bool = conn
-            .prepare("SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'display_name'")
+            .prepare(
+                "SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'display_name'",
+            )
             .and_then(|mut s| s.query_row([], |r| r.get::<_, i64>(0)))
             .unwrap_or(0)
             > 0;
@@ -115,11 +116,7 @@ impl SessionStore {
     // -- Session CRUD -------------------------------------------------------
 
     /// Create a new chat session associated with the given model.
-    pub fn create_session(
-        &self,
-        model_id: &str,
-        model_name: &str,
-    ) -> Result<Session, String> {
+    pub fn create_session(&self, model_id: &str, model_name: &str) -> Result<Session, String> {
         let id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now().timestamp();
 
@@ -262,9 +259,16 @@ impl SessionStore {
         Ok(session)
     }
 
-    /// Delete a session and all of its messages.
+    /// Delete a session and all of its messages and comparisons.
     pub fn delete_session(&self, session_id: &str) -> Result<(), String> {
         let conn = self.conn.lock().map_err(|e| format!("lock error: {e}"))?;
+
+        // Comparisons have no FK constraint, so delete explicitly.
+        conn.execute(
+            "DELETE FROM comparisons WHERE session_id = ?1",
+            params![session_id],
+        )
+        .map_err(|e| format!("delete comparisons error: {e}"))?;
 
         // Messages are cascaded by FK, but delete explicitly for clarity /
         // in case FK enforcement is disabled.
@@ -283,13 +287,18 @@ impl SessionStore {
     /// Rename a session by updating its display name (stored in `display_name`
     /// column, surfaced as the `preview` field) and refreshing `updated_at`.
     pub fn rename_session(&self, session_id: &str, new_name: &str) -> Result<(), String> {
+        let trimmed = new_name.trim();
+        if trimmed.is_empty() {
+            return Err("session name cannot be empty".to_string());
+        }
+
         let conn = self.conn.lock().map_err(|e| format!("lock error: {e}"))?;
         let now = chrono::Utc::now().timestamp();
 
         let rows = conn
             .execute(
                 "UPDATE sessions SET display_name = ?1, updated_at = ?2 WHERE id = ?3",
-                params![new_name, now, session_id],
+                params![trimmed, now, session_id],
             )
             .map_err(|e| format!("rename session error: {e}"))?;
 
@@ -350,13 +359,9 @@ impl SessionStore {
 
     /// Insert a message into the store and update the parent session's
     /// `updated_at` timestamp.
-    pub fn add_message(
-        &self,
-        session_id: &str,
-        msg: &ChatMessage,
-    ) -> Result<(), String> {
-        let content_json = serde_json::to_string(&msg.content)
-            .map_err(|e| format!("serialize error: {e}"))?;
+    pub fn add_message(&self, session_id: &str, msg: &ChatMessage) -> Result<(), String> {
+        let content_json =
+            serde_json::to_string(&msg.content).map_err(|e| format!("serialize error: {e}"))?;
 
         let role_str = match msg.role {
             MessageRole::User => "User",
@@ -426,10 +431,7 @@ impl SessionStore {
     }
 
     /// Retrieve all comparisons for a given session, ordered by creation time.
-    pub fn get_comparisons(
-        &self,
-        session_id: &str,
-    ) -> Result<Vec<ComparisonRecord>, String> {
+    pub fn get_comparisons(&self, session_id: &str) -> Result<Vec<ComparisonRecord>, String> {
         let conn = self.conn.lock().map_err(|e| format!("lock error: {e}"))?;
 
         let mut stmt = conn
@@ -530,10 +532,7 @@ impl SessionStore {
             .map_err(|e| format!("spawn_blocking error: {e}"))?
     }
 
-    pub async fn delete_session_async(
-        self: &Arc<Self>,
-        session_id: String,
-    ) -> Result<(), String> {
+    pub async fn delete_session_async(self: &Arc<Self>, session_id: String) -> Result<(), String> {
         let store = self.clone();
         tokio::task::spawn_blocking(move || store.delete_session(&session_id))
             .await

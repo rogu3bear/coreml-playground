@@ -44,8 +44,7 @@ impl ToastStore {
 
     /// Pushes a toast with an auto-generated ID and default TTL (4 000 ms).
     pub fn push(message: String, level: ToastLevel) {
-        let write =
-            use_context::<WriteSignal<Vec<Toast>>>().expect("toast WriteSignal context");
+        let write = use_context::<WriteSignal<Vec<Toast>>>().expect("toast WriteSignal context");
         let id = uuid::Uuid::new_v4().to_string();
         let toast = Toast {
             id,
@@ -58,8 +57,7 @@ impl ToastStore {
 
     /// Removes the toast with the given `id`, if present.
     pub fn dismiss(id: &str) {
-        let write =
-            use_context::<WriteSignal<Vec<Toast>>>().expect("toast WriteSignal context");
+        let write = use_context::<WriteSignal<Vec<Toast>>>().expect("toast WriteSignal context");
         let owned = id.to_string();
         write.update(|list| list.retain(|t| t.id != owned));
     }
@@ -72,8 +70,7 @@ impl ToastStore {
 /// toast("Something happened".into(), ToastLevel::Info);
 /// ```
 pub fn use_toast() -> impl Fn(String, ToastLevel) + Clone + 'static {
-    let write =
-        use_context::<WriteSignal<Vec<Toast>>>().expect("toast WriteSignal context");
+    let write = use_context::<WriteSignal<Vec<Toast>>>().expect("toast WriteSignal context");
     move |message: String, level: ToastLevel| {
         let id = uuid::Uuid::new_v4().to_string();
         let toast = Toast {
@@ -89,8 +86,7 @@ pub fn use_toast() -> impl Fn(String, ToastLevel) + Clone + 'static {
 /// Renders the stack of active toasts in a fixed overlay.
 #[component]
 fn ToastContainer() -> impl IntoView {
-    let toasts =
-        use_context::<ReadSignal<Vec<Toast>>>().expect("toast ReadSignal context");
+    let toasts = use_context::<ReadSignal<Vec<Toast>>>().expect("toast ReadSignal context");
 
     view! {
         <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col-reverse items-center gap-2 pointer-events-none">

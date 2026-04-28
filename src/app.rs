@@ -14,8 +14,8 @@ use crate::components::settings::{provide_persona_context, PersonaSettings};
 use crate::components::toast::ToastProvider;
 use crate::types::{
     LastInferenceMs, ModelInfo, ModelPickerOpen, SessionVersion, SetLastInferenceMs,
-    SetModelPickerOpen, SetSessionVersion, SetShowComparison, SetShowIntrospection,
-    SetShortcutNewSession, ShowComparison, ShortcutNewSession, ShowIntrospection,
+    SetModelPickerOpen, SetSessionVersion, SetShortcutNewSession, SetShowComparison,
+    SetShowIntrospection, ShortcutNewSession, ShowComparison, ShowIntrospection,
 };
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -78,12 +78,12 @@ fn Home() -> impl IntoView {
 
     // Provide context to all children.
     // Unique types (no ambiguity — provided directly):
-    provide_context(active_model);          // ReadSignal<Option<ModelInfo>>
-    provide_context(set_active_model);      // WriteSignal<Option<ModelInfo>>
-    provide_context(active_session_id);     // ReadSignal<Option<String>>
+    provide_context(active_model); // ReadSignal<Option<ModelInfo>>
+    provide_context(set_active_model); // WriteSignal<Option<ModelInfo>>
+    provide_context(active_session_id); // ReadSignal<Option<String>>
     provide_context(set_active_session_id); // WriteSignal<Option<String>>
-    provide_context(theme);                 // ReadSignal<String>
-    provide_context(set_theme);             // WriteSignal<String>
+    provide_context(theme); // ReadSignal<String>
+    provide_context(set_theme); // WriteSignal<String>
 
     // Newtype-wrapped signals (disambiguates same-typed contexts):
     provide_context(ShowIntrospection(show_introspection));

@@ -33,9 +33,7 @@ pub fn levenshtein_distance(a: &str, b: &str) -> usize {
             } else {
                 1
             };
-            curr[j] = (prev[j] + 1)
-                .min(curr[j - 1] + 1)
-                .min(prev[j - 1] + cost);
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -67,8 +65,8 @@ fn strip_version_suffix(name: &str) -> String {
         // Keyword suffixes (case-insensitive check on lower-cased tail)
         let lower = s.to_lowercase();
         for suffix in &[
-            "_old", "-old", "_new", "-new", "_final", "-final",
-            "_latest", "-latest", "_draft", "-draft",
+            "_old", "-old", "_new", "-new", "_final", "-final", "_latest", "-latest", "_draft",
+            "-draft",
         ] {
             if lower.ends_with(suffix) {
                 let cut = s.len() - suffix.len();
@@ -146,8 +144,7 @@ pub fn group_model_versions(models: &[ModelInfo]) -> Vec<ModelGroup> {
     }
 
     // Collect groups.
-    let mut groups: std::collections::HashMap<usize, Vec<usize>> =
-        std::collections::HashMap::new();
+    let mut groups: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
     for i in 0..n {
         let root = find(&mut parent, i);
         groups.entry(root).or_default().push(i);
@@ -158,8 +155,7 @@ pub fn group_model_versions(models: &[ModelInfo]) -> Vec<ModelGroup> {
         .map(|indices| {
             // Use the stripped name of the first member as the base name.
             let base_name = stripped[indices[0]].clone();
-            let group_models: Vec<ModelInfo> =
-                indices.iter().map(|&i| models[i].clone()).collect();
+            let group_models: Vec<ModelInfo> = indices.iter().map(|&i| models[i].clone()).collect();
             ModelGroup {
                 base_name,
                 models: group_models,
@@ -202,10 +198,7 @@ enum FieldDiff {
 }
 
 /// Builds a list of per-key diffs between two JSON objects.
-fn compute_field_diffs(
-    left: &serde_json::Value,
-    right: &serde_json::Value,
-) -> Vec<FieldDiff> {
+fn compute_field_diffs(left: &serde_json::Value, right: &serde_json::Value) -> Vec<FieldDiff> {
     let empty_map = serde_json::Map::new();
     let left_obj = left.as_object().unwrap_or(&empty_map);
     let right_obj = right.as_object().unwrap_or(&empty_map);
@@ -274,9 +267,7 @@ fn is_classification_output(v: &serde_json::Value) -> bool {
             return false;
         }
         arr.iter().all(|item| {
-            item.is_object()
-                && item.get("label").is_some()
-                && item.get("score").is_some()
+            item.is_object() && item.get("label").is_some() && item.get("score").is_some()
         })
     } else {
         false

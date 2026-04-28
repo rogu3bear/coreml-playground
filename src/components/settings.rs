@@ -8,9 +8,10 @@ use crate::components::toast::{ToastLevel, ToastStore};
 // ---------------------------------------------------------------------------
 
 /// UI persona controlling which features are surfaced.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub enum PersonaMode {
     /// Simplified UI, plain-English descriptions.
+    #[default]
     Explorer,
     /// Current UI as-is with introspection.
     Developer,
@@ -36,20 +37,15 @@ impl PersonaMode {
     }
 }
 
-impl Default for PersonaMode {
-    fn default() -> Self {
-        Self::Explorer
-    }
-}
-
 // ---------------------------------------------------------------------------
 // ComplexityTier
 // ---------------------------------------------------------------------------
 
 /// Progressive-unlock tier derived from usage counters.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub enum ComplexityTier {
     /// Chat only, no sidebar, no introspection, minimal model switcher.
+    #[default]
     Tier1,
     /// Session sidebar, introspection, image drop zone.
     Tier2,
@@ -67,12 +63,6 @@ impl ComplexityTier {
         } else {
             Self::Tier1
         }
-    }
-}
-
-impl Default for ComplexityTier {
-    fn default() -> Self {
-        Self::Tier1
     }
 }
 
@@ -157,9 +147,7 @@ fn save_persona(mode: PersonaMode) {
 }
 
 fn load_counter(key: &str) -> u32 {
-    ls_get(key)
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(0)
+    ls_get(key).and_then(|v| v.parse::<u32>().ok()).unwrap_or(0)
 }
 
 fn save_counter(key: &str, value: u32) {
@@ -263,14 +251,13 @@ fn maybe_upgrade_tier(session_count: u32, inference_count: u32) {
 pub fn PersonaSettings() -> impl IntoView {
     let (open, set_open) = signal(false);
 
-    let persona = use_context::<ReadSignal<PersonaMode>>()
-        .expect("PersonaMode ReadSignal context");
-    let set_persona = use_context::<WriteSignal<PersonaMode>>()
-        .expect("PersonaMode WriteSignal context");
-    let tier = use_context::<ReadSignal<ComplexityTier>>()
-        .expect("ComplexityTier ReadSignal context");
-    let set_tier = use_context::<WriteSignal<ComplexityTier>>()
-        .expect("ComplexityTier WriteSignal context");
+    let persona = use_context::<ReadSignal<PersonaMode>>().expect("PersonaMode ReadSignal context");
+    let set_persona =
+        use_context::<WriteSignal<PersonaMode>>().expect("PersonaMode WriteSignal context");
+    let tier =
+        use_context::<ReadSignal<ComplexityTier>>().expect("ComplexityTier ReadSignal context");
+    let set_tier =
+        use_context::<WriteSignal<ComplexityTier>>().expect("ComplexityTier WriteSignal context");
 
     let select_mode = move |mode: PersonaMode| {
         set_persona.set(mode);

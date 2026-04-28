@@ -179,12 +179,7 @@ pub struct RawModelMetadata {
 
 impl RawModelMetadata {
     /// Combine with caller-supplied fields to produce a complete `ModelInfo`.
-    pub fn into_model_info(
-        self,
-        id: String,
-        name: String,
-        file_size_bytes: u64,
-    ) -> ModelInfo {
+    pub fn into_model_info(self, id: String, name: String, file_size_bytes: u64) -> ModelInfo {
         ModelInfo {
             id,
             name,
@@ -208,10 +203,7 @@ impl RawModelMetadata {
 ///
 /// Returns an error if the input is not valid UTF-8, prediction fails, or the
 /// output JSON is malformed.
-pub fn predict_text(
-    handle: &ModelHandle,
-    input: &str,
-) -> Result<serde_json::Value, String> {
+pub fn predict_text(handle: &ModelHandle, input: &str) -> Result<serde_json::Value, String> {
     let c_input = CString::new(input).map_err(|e| format!("Invalid input string: {e}"))?;
     let ptr = unsafe { coreml_predict_text(handle.as_ptr(), c_input.as_ptr()) };
     let json = unsafe { read_and_free_cstring(ptr)? };
@@ -272,11 +264,8 @@ fn parse_port_list(value: Option<&serde_json::Value>) -> Vec<PortInfo> {
             let name = item.get("name")?.as_str()?.to_owned();
             let port_type = item.get("port_type")?.as_str()?.to_owned();
             let shape = item.get("shape").and_then(|s| {
-                s.as_array().map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_i64())
-                        .collect::<Vec<i64>>()
-                })
+                s.as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_i64()).collect::<Vec<i64>>())
             });
             Some(PortInfo {
                 name,

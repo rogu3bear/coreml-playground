@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 
 use crate::components::toast::{ToastLevel, ToastStore};
-use crate::server::api::{list_models, send_message, create_session};
+use crate::server::api::{create_session, list_models, send_message};
 use crate::types::*;
 
 // ---------------------------------------------------------------------------
@@ -280,13 +280,13 @@ pub fn ComparisonView() -> impl IntoView {
     let right_session: RwSignal<Option<String>> = RwSignal::new(None);
 
     // Fetch available models
-    let models_resource = Resource::new(|| (), |_| async move {
-        list_models().await.unwrap_or_default()
-    });
+    let models_resource = Resource::new(
+        || (),
+        |_| async move { list_models().await.unwrap_or_default() },
+    );
 
-    let models_signal: Signal<Vec<ModelInfo>> = Signal::derive(move || {
-        models_resource.get().unwrap_or_default()
-    });
+    let models_signal: Signal<Vec<ModelInfo>> =
+        Signal::derive(move || models_resource.get().unwrap_or_default());
 
     // Scroll container ref
     let scroll_ref = NodeRef::<leptos::html::Div>::new();
@@ -315,7 +315,7 @@ pub fn ComparisonView() -> impl IntoView {
                     let html_el: &web_sys::HtmlElement = el.unchecked_ref();
                     html_el.style().set_property("height", "auto").ok();
                     let scroll_h = el.scroll_height();
-                    let clamped = scroll_h.min(192).max(40);
+                    let clamped = scroll_h.clamp(40, 192);
                     html_el.style()
                         .set_property("height", &format!("{}px", clamped))
                         .ok();
@@ -393,10 +393,7 @@ pub fn ComparisonView() -> impl IntoView {
                         sid
                     }
                     Err(e) => {
-                        ToastStore::push(
-                            format!("Left session error: {e}"),
-                            ToastLevel::Error,
-                        );
+                        ToastStore::push(format!("Left session error: {e}"), ToastLevel::Error);
                         entries.update(|list| {
                             if let Some(entry) = list.iter_mut().find(|e| e.id == entry_id_left) {
                                 entry.left_loading = false;
@@ -417,10 +414,7 @@ pub fn ComparisonView() -> impl IntoView {
                     });
                 }
                 Err(e) => {
-                    ToastStore::push(
-                        format!("Left model error: {e}"),
-                        ToastLevel::Error,
-                    );
+                    ToastStore::push(format!("Left model error: {e}"), ToastLevel::Error);
                     entries.update(|list| {
                         if let Some(entry) = list.iter_mut().find(|e| e.id == entry_id_left) {
                             entry.left_loading = false;
@@ -430,7 +424,10 @@ pub fn ComparisonView() -> impl IntoView {
             }
 
             // Check if both sides are done
-            let both_done = entries.get().iter().all(|e| !e.left_loading && !e.right_loading);
+            let both_done = entries
+                .get()
+                .iter()
+                .all(|e| !e.left_loading && !e.right_loading);
             if both_done {
                 set_sending.set(false);
             }
@@ -452,10 +449,7 @@ pub fn ComparisonView() -> impl IntoView {
                         sid
                     }
                     Err(e) => {
-                        ToastStore::push(
-                            format!("Right session error: {e}"),
-                            ToastLevel::Error,
-                        );
+                        ToastStore::push(format!("Right session error: {e}"), ToastLevel::Error);
                         entries.update(|list| {
                             if let Some(entry) = list.iter_mut().find(|e| e.id == entry_id_right) {
                                 entry.right_loading = false;
@@ -476,10 +470,7 @@ pub fn ComparisonView() -> impl IntoView {
                     });
                 }
                 Err(e) => {
-                    ToastStore::push(
-                        format!("Right model error: {e}"),
-                        ToastLevel::Error,
-                    );
+                    ToastStore::push(format!("Right model error: {e}"), ToastLevel::Error);
                     entries.update(|list| {
                         if let Some(entry) = list.iter_mut().find(|e| e.id == entry_id_right) {
                             entry.right_loading = false;
@@ -489,7 +480,10 @@ pub fn ComparisonView() -> impl IntoView {
             }
 
             // Check if both sides are done
-            let both_done = entries.get().iter().all(|e| !e.left_loading && !e.right_loading);
+            let both_done = entries
+                .get()
+                .iter()
+                .all(|e| !e.left_loading && !e.right_loading);
             if both_done {
                 set_sending.set(false);
             }

@@ -47,10 +47,7 @@ fn test_model_type_accepts_image() {
 
 #[test]
 fn test_model_type_accepts_text() {
-    assert!(
-        ModelType::Text.accepts_text(),
-        "Text should accept text"
-    );
+    assert!(ModelType::Text.accepts_text(), "Text should accept text");
     assert!(
         ModelType::Multimodal.accepts_text(),
         "Multimodal should accept text"
@@ -171,10 +168,7 @@ fn test_truncate_behavior() {
     // Short text should not be truncated.
     let short_text = MessageContent::Text("hi".into());
     let short_preview = short_text.preview(10);
-    assert_eq!(
-        short_preview, "hi",
-        "short text should not be truncated"
-    );
+    assert_eq!(short_preview, "hi", "short text should not be truncated");
     assert!(
         !short_preview.ends_with("..."),
         "short text preview should not end with '...'"

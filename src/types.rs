@@ -237,9 +237,10 @@ impl MessageContent {
     pub fn preview(&self, max_len: usize) -> String {
         match self {
             Self::Text(s) => truncate(s, max_len),
-            Self::Image { caption, .. } => {
-                caption.as_deref().map(|c| truncate(c, max_len)).unwrap_or_else(|| "[image]".into())
-            }
+            Self::Image { caption, .. } => caption
+                .as_deref()
+                .map(|c| truncate(c, max_len))
+                .unwrap_or_else(|| "[image]".into()),
             Self::ModelOutput(_) => "[model output]".into(),
             Self::Streaming { partial, .. } => truncate(partial, max_len),
             Self::Batch(items) => format!("Batch: {} images", items.len()),

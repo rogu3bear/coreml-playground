@@ -173,7 +173,9 @@ pub fn export_as_html(model_name: &str, messages: &[ChatMessage]) -> String {
 fn content_to_markdown(content: &MessageContent) -> String {
     match content {
         MessageContent::Text(s) => s.clone(),
-        MessageContent::Image { mime_type, caption, .. } => {
+        MessageContent::Image {
+            mime_type, caption, ..
+        } => {
             let cap = caption
                 .as_deref()
                 .map(|c| format!(" \u{2014} {c}"))
@@ -191,7 +193,9 @@ fn content_to_markdown(content: &MessageContent) -> String {
 fn content_to_html(content: &MessageContent) -> String {
     match content {
         MessageContent::Text(s) => html_escape(s),
-        MessageContent::Image { mime_type, caption, .. } => {
+        MessageContent::Image {
+            mime_type, caption, ..
+        } => {
             let cap = caption
                 .as_deref()
                 .map(|c| format!(" &mdash; {}", html_escape(c)))
@@ -247,7 +251,6 @@ pub fn ExportMenu(
 
     let copy_markdown = move |_| {
         let sid = session_id.get();
-        let on_close = on_close.clone();
         leptos::task::spawn_local(async move {
             match export_session(sid).await {
                 Ok((model_name, messages)) => {
@@ -264,7 +267,6 @@ pub fn ExportMenu(
 
     let copy_json = move |_| {
         let sid = session_id.get();
-        let on_close = on_close.clone();
         leptos::task::spawn_local(async move {
             match export_session(sid).await {
                 Ok((_model_name, messages)) => {
@@ -281,7 +283,6 @@ pub fn ExportMenu(
 
     let download_html = move |_| {
         let sid = session_id.get();
-        let on_close = on_close.clone();
         leptos::task::spawn_local(async move {
             match export_session(sid).await {
                 Ok((model_name, messages)) => {
@@ -434,7 +435,9 @@ mod tests {
             ChatMessage {
                 id: "2".into(),
                 role: MessageRole::Model,
-                content: MessageContent::ModelOutput(serde_json::json!({"label": "Positive", "score": 0.95})),
+                content: MessageContent::ModelOutput(
+                    serde_json::json!({"label": "Positive", "score": 0.95}),
+                ),
                 timestamp: 1001,
                 inference_ms: Some(127),
             },

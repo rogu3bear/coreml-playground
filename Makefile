@@ -2,10 +2,10 @@
 .PHONY: dev dev-real check test fmt lint clean
 
 dev:          ## Start development server with live reload (mock mode)
-	COREML_MOCK=1 cargo leptos watch
+	COREML_MOCK=1 bash ./scripts/with-wasm-bindgen-cli.sh cargo leptos watch
 
 dev-real:     ## Start development server with real CoreML backend
-	cargo leptos watch
+	bash ./scripts/with-wasm-bindgen-cli.sh cargo leptos watch
 
 check:        ## Check both SSR and WASM targets
 	cargo check --features ssr
@@ -30,10 +30,10 @@ clean:        ## Clean build artifacts
 .PHONY: build build-release
 
 build:        ## Build debug SSR binary
-	cargo leptos build
+	bash ./scripts/with-wasm-bindgen-cli.sh cargo leptos build
 
 build-release: ## Build optimized release binary
-	cargo leptos build --release
+	bash ./scripts/with-wasm-bindgen-cli.sh cargo leptos build --release
 
 # Setup
 .PHONY: setup setup-wasm

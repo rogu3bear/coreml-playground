@@ -16,8 +16,9 @@ pub fn InputBar() -> impl IntoView {
         use_context::<ReadSignal<Option<String>>>().expect("active_session_id context");
     let set_active_session_id =
         use_context::<WriteSignal<Option<String>>>().expect("set_active_session_id context");
-    let set_session_version =
-        use_context::<crate::types::SetSessionVersion>().expect("SetSessionVersion context").0;
+    let set_session_version = use_context::<crate::types::SetSessionVersion>()
+        .expect("SetSessionVersion context")
+        .0;
 
     let (input_text, set_input_text) = signal(String::new());
     let (sending, set_sending) = signal(false);
@@ -41,17 +42,15 @@ pub fn InputBar() -> impl IntoView {
     let has_any_image = move || image_data.get().is_some() || !batch_images.get().is_empty();
 
     // (CPO-8) Contextual placeholder based on model type
-    let placeholder_text = move || {
-        match active_model.get() {
-            None => "Select a model to begin...",
-            Some(m) => match m.model_type {
-                ModelType::Text => "Type a message...",
-                ModelType::Vision => "Drop an image or describe what you see...",
-                ModelType::Multimodal => "Type or drop an image...",
-                ModelType::Audio => "Audio models process audio files...",
-                ModelType::Unknown => "Type a message...",
-            },
-        }
+    let placeholder_text = move || match active_model.get() {
+        None => "Select a model to begin...",
+        Some(m) => match m.model_type {
+            ModelType::Text => "Type a message...",
+            ModelType::Vision => "Drop an image or describe what you see...",
+            ModelType::Multimodal => "Type or drop an image...",
+            ModelType::Audio => "Audio models process audio files...",
+            ModelType::Unknown => "Type a message...",
+        },
     };
 
     // (USER-22) With auto-create, the input is only truly disabled when no model is loaded
@@ -66,7 +65,7 @@ pub fn InputBar() -> impl IntoView {
                     let html_el: &web_sys::HtmlElement = el.unchecked_ref();
                     html_el.style().set_property("height", "auto").ok();
                     let scroll_h = el.scroll_height();
-                    let clamped = scroll_h.min(192).max(40);
+                    let clamped = scroll_h.clamp(40, 192);
                     html_el.style()
                         .set_property("height", &format!("{}px", clamped))
                         .ok();
@@ -182,13 +181,21 @@ pub fn InputBar() -> impl IntoView {
                 .collect();
             InferenceInput::BatchImages {
                 images,
-                prompt: if text.is_empty() { None } else { Some(text.clone()) },
+                prompt: if text.is_empty() {
+                    None
+                } else {
+                    Some(text.clone())
+                },
             }
         } else if let Some(preview) = img {
             InferenceInput::Image {
                 data_base64: preview.base64,
                 mime_type: preview.mime_type,
-                prompt: if text.is_empty() { None } else { Some(text.clone()) },
+                prompt: if text.is_empty() {
+                    None
+                } else {
+                    Some(text.clone())
+                },
             }
         } else if !text.is_empty() {
             InferenceInput::Text(text.clone())
@@ -447,7 +454,6 @@ pub fn InputBar() -> impl IntoView {
                                                     <button
                                                         class="absolute -top-1 -right-1 w-4 h-4 bg-zinc-700 hover:bg-zinc-600 rounded-full flex items-center justify-center text-zinc-300 transition-colors"
                                                         on:click={
-                                                            let batch_images = batch_images;
                                                             move |_| {
                                                                 let mut imgs = batch_images.get();
                                                                 if idx < imgs.len() {
@@ -578,7 +584,7 @@ pub fn InputBar() -> impl IntoView {
                         node_ref=textarea_ref
                         class="flex-1 bg-zinc-800/40 border border-zinc-700/30 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30 focus:border-amber-500/30 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
                         style="height: 40px"
-                        placeholder=move || placeholder_text()
+                        placeholder=placeholder_text
                         disabled=move || is_model_missing() || sending.get()
                         prop:value=move || input_text.get()
                         on:input=on_input
@@ -642,11 +648,7 @@ fn read_file_as_base64(file: web_sys::File, set_image_data: WriteSignal<Option<I
         if let Ok(result) = reader.result() {
             if let Some(data_url) = result.as_string() {
                 // data_url looks like "data:image/png;base64,iVBOR..."
-                let base64 = data_url
-                    .split(',')
-                    .nth(1)
-                    .unwrap_or("")
-                    .to_string();
+                let base64 = data_url.split(',').nth(1).unwrap_or("").to_string();
                 set_image_data.set(Some(ImagePreview {
                     base64,
                     mime_type: mime_type.clone(),
@@ -676,11 +678,7 @@ fn read_file_as_base64_batch(file: web_sys::File, batch_images: RwSignal<Vec<Ima
         let reader: web_sys::FileReader = target.unchecked_into();
         if let Ok(result) = reader.result() {
             if let Some(data_url) = result.as_string() {
-                let base64 = data_url
-                    .split(',')
-                    .nth(1)
-                    .unwrap_or("")
-                    .to_string();
+                let base64 = data_url.split(',').nth(1).unwrap_or("").to_string();
                 batch_images.update(|imgs| {
                     imgs.push(ImagePreview {
                         base64,

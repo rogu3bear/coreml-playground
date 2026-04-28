@@ -133,9 +133,7 @@ async fn handle_socket(
                     timestamp: chrono::Utc::now().timestamp(),
                     inference_ms: Some(inference_ms),
                 };
-                if let Err(err) =
-                    persist_message(&store, &request.session_id, &model_msg).await
-                {
+                if let Err(err) = persist_message(&store, &request.session_id, &model_msg).await {
                     leptos::logging::log!("[ws] failed to persist model message: {err}");
                 }
             }
@@ -202,16 +200,14 @@ async fn demo_echo_predict(input: &InferenceInput) -> Result<serde_json::Value, 
 
     let echo_text = match input {
         InferenceInput::Text(t) => t.clone(),
-        InferenceInput::Image { prompt, mime_type, .. } => {
-            prompt
-                .clone()
-                .unwrap_or_else(|| format!("[image: {mime_type}]"))
-        }
-        InferenceInput::BatchImages { images, prompt } => {
-            prompt
-                .clone()
-                .unwrap_or_else(|| format!("[batch: {} images]", images.len()))
-        }
+        InferenceInput::Image {
+            prompt, mime_type, ..
+        } => prompt
+            .clone()
+            .unwrap_or_else(|| format!("[image: {mime_type}]")),
+        InferenceInput::BatchImages { images, prompt } => prompt
+            .clone()
+            .unwrap_or_else(|| format!("[batch: {} images]", images.len())),
     };
 
     Ok(serde_json::json!({
@@ -221,10 +217,7 @@ async fn demo_echo_predict(input: &InferenceInput) -> Result<serde_json::Value, 
 }
 
 /// Generate a mock prediction based on the model id and input type.
-async fn mock_predict(
-    model_id: &str,
-    input: &InferenceInput,
-) -> Result<serde_json::Value, String> {
+async fn mock_predict(model_id: &str, input: &InferenceInput) -> Result<serde_json::Value, String> {
     // Simulate a short latency so the UI feels realistic.
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
@@ -240,6 +233,12 @@ async fn mock_predict(
         "mock-textsentiment" => {
             let text = match input {
                 InferenceInput::Text(t) => t.as_str(),
+                InferenceInput::Image {
+                    prompt: Some(p), ..
+                } => p.as_str(),
+                InferenceInput::BatchImages {
+                    prompt: Some(p), ..
+                } => p.as_str(),
                 _ => "",
             };
             let positive = text.contains("great")
@@ -256,7 +255,8 @@ async fn mock_predict(
             "text": "This is a mock transcription of the provided audio clip."
         })),
         _ => Ok(serde_json::json!({
-            "raw": "mock output for unknown model"
+            "output_0": [0.5, 0.3, 0.2],
+            "debug": { "model": model_id, "mock": true }
         })),
     }
 }
@@ -267,8 +267,7 @@ async fn mock_predict(
 
 /// Send a `WsMessage` as a JSON text frame.
 async fn send_ws(socket: &mut WebSocket, msg: &WsMessage) -> Result<(), String> {
-    let json =
-        serde_json::to_string(msg).map_err(|e| format!("serialize error: {e}"))?;
+    let json = serde_json::to_string(msg).map_err(|e| format!("serialize error: {e}"))?;
     socket
         .send(Message::Text(json.into()))
         .await
@@ -276,7 +275,7 @@ async fn send_ws(socket: &mut WebSocket, msg: &WsMessage) -> Result<(), String> 
 }
 
 /// Convert an `InferenceInput` into a `MessageContent` for persistence.
-fn input_to_content(input: &InferenceInput) -> MessageContent {
+pub(crate) fn input_to_content(input: &InferenceInput) -> MessageContent {
     match input {
         InferenceInput::Text(text) => MessageContent::Text(text.clone()),
         InferenceInput::Image {
@@ -293,16 +292,17 @@ fn input_to_content(input: &InferenceInput) -> MessageContent {
                 MessageContent::Image {
                     data_base64: first.data_base64.clone(),
                     mime_type: first.mime_type.clone(),
-                    caption: Some(
-                        prompt
-                            .clone()
-                            .unwrap_or_else(|| format!("Batch: {} images", images.len())),
-                    ),
+                    caption: Some(prompt.clone().unwrap_or_else(|| {
+                        let n = images.len();
+                        if n == 1 {
+                            "Batch: 1 image".to_string()
+                        } else {
+                            format!("Batch: {} images", n)
+                        }
+                    })),
                 }
             } else {
-                MessageContent::Text(
-                    prompt.clone().unwrap_or_else(|| "Empty batch".to_string()),
-                )
+                MessageContent::Text(prompt.clone().unwrap_or_else(|| "Empty batch".to_string()))
             }
         }
     }
@@ -321,4 +321,105 @@ async fn persist_message(
     tokio::task::spawn_blocking(move || store.add_message(&session_id, &msg))
         .await
         .map_err(|e| format!("spawn_blocking error: {e}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn input_to_content_text() {
+        let input = InferenceInput::Text("hello".into());
+        let content = input_to_content(&input);
+        assert_eq!(content.as_text(), Some("hello"));
+    }
+
+    #[test]
+    fn input_to_content_image() {
+        let input = InferenceInput::Image {
+            data_base64: "abc".into(),
+            mime_type: "image/png".into(),
+            prompt: Some("describe this".into()),
+        };
+        let content = input_to_content(&input);
+
+        if let MessageContent::Image {
+            data_base64,
+            mime_type,
+            caption,
+        } = content
+        {
+            assert_eq!(data_base64, "abc");
+            assert_eq!(mime_type, "image/png");
+            assert_eq!(caption.as_deref(), Some("describe this"));
+        } else {
+            panic!("expected Image content, got {:?}", content);
+        }
+    }
+
+    #[test]
+    fn input_to_content_batch_nonempty() {
+        let input = InferenceInput::BatchImages {
+            images: vec![
+                BatchImageInput {
+                    data_base64: "img1".into(),
+                    mime_type: "image/jpeg".into(),
+                },
+                BatchImageInput {
+                    data_base64: "img2".into(),
+                    mime_type: "image/png".into(),
+                },
+            ],
+            prompt: Some("batch prompt".into()),
+        };
+        let content = input_to_content(&input);
+
+        if let MessageContent::Image {
+            data_base64,
+            caption,
+            ..
+        } = content
+        {
+            assert_eq!(data_base64, "img1", "should use first image's data");
+            assert_eq!(caption.as_deref(), Some("batch prompt"));
+        } else {
+            panic!(
+                "expected Image content for nonempty batch, got {:?}",
+                content
+            );
+        }
+    }
+
+    #[test]
+    fn input_to_content_batch_single_image_grammar() {
+        let input = InferenceInput::BatchImages {
+            images: vec![BatchImageInput {
+                data_base64: "img1".into(),
+                mime_type: "image/jpeg".into(),
+            }],
+            prompt: None,
+        };
+        let content = input_to_content(&input);
+        if let MessageContent::Image { caption, .. } = content {
+            let cap = caption.unwrap();
+            assert!(cap.contains("1 image"), "got: {}", cap);
+            assert!(!cap.contains("1 images"), "got: {}", cap);
+        } else {
+            panic!("expected Image content");
+        }
+    }
+
+    #[test]
+    fn input_to_content_batch_empty() {
+        let input = InferenceInput::BatchImages {
+            images: vec![],
+            prompt: None,
+        };
+        let content = input_to_content(&input);
+        assert_eq!(
+            content.as_text(),
+            Some("Empty batch"),
+            "empty batch with no prompt should produce 'Empty batch' text"
+        );
+    }
 }

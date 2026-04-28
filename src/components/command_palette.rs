@@ -50,9 +50,10 @@ pub fn CommandPalette() -> impl IntoView {
     let input_ref = NodeRef::<leptos::html::Input>::new();
 
     // Fetch model list once (resource is cached across opens).
-    let models = Resource::new(|| (), |_| async move {
-        list_models().await.unwrap_or_default()
-    });
+    let models = Resource::new(
+        || (),
+        |_| async move { list_models().await.unwrap_or_default() },
+    );
 
     // Build the full command list from static commands + loaded models.
     let all_commands = Memo::new(move |_| {
@@ -128,7 +129,10 @@ pub fn CommandPalette() -> impl IntoView {
             }
             // Sort recent_cmds by position in the recents list (most recent first).
             recent_cmds.sort_by_key(|c| {
-                recents.iter().position(|r| r == &c.id).unwrap_or(usize::MAX)
+                recents
+                    .iter()
+                    .position(|r| r == &c.id)
+                    .unwrap_or(usize::MAX)
             });
 
             for cmd in &cmds {
@@ -162,7 +166,7 @@ pub fn CommandPalette() -> impl IntoView {
                     set_query.set(String::new());
                     set_selected_index.set(0);
                     // Defer focus to next microtask so the input is rendered.
-                    let input_ref = input_ref.clone();
+                    let input_ref = input_ref;
                     leptos::task::spawn_local(async move {
                         gloo_timers::future::TimeoutFuture::new(10).await;
                         if let Some(el) = input_ref.get() {
@@ -188,9 +192,8 @@ pub fn CommandPalette() -> impl IntoView {
             PaletteAction::LoadModel(model_id) => {
                 let model_id = model_id.clone();
                 // Grab the active model setter and load the model.
-                let set_active_model =
-                    use_context::<WriteSignal<Option<ModelInfo>>>()
-                        .expect("set_active_model context");
+                let set_active_model = use_context::<WriteSignal<Option<ModelInfo>>>()
+                    .expect("set_active_model context");
                 let model_name = cmd.label.clone();
                 leptos::task::spawn_local(async move {
                     match crate::server::api::load_model(model_id).await {
@@ -205,23 +208,25 @@ pub fn CommandPalette() -> impl IntoView {
                 });
             }
             PaletteAction::NewSession => {
-                let set_shortcut =
-                    use_context::<crate::types::SetShortcutNewSession>()
-                        .expect("SetShortcutNewSession context").0;
+                let set_shortcut = use_context::<crate::types::SetShortcutNewSession>()
+                    .expect("SetShortcutNewSession context")
+                    .0;
                 set_shortcut.update(|v| *v = v.wrapping_add(1));
             }
             PaletteAction::ExportSession => {
-                ToastStore::push("Use the export button in the top bar".into(), ToastLevel::Info);
+                ToastStore::push(
+                    "Use the export button in the top bar".into(),
+                    ToastLevel::Info,
+                );
             }
             PaletteAction::CompareModels => {
                 let set_cmp = use_context::<crate::types::SetShowComparison>()
-                    .expect("SetShowComparison context").0;
+                    .expect("SetShowComparison context")
+                    .0;
                 set_cmp.set(true);
             }
             PaletteAction::ToggleTheme => {
-                let set_theme =
-                    use_context::<WriteSignal<String>>()
-                        .expect("set_theme context");
+                let set_theme = use_context::<WriteSignal<String>>().expect("set_theme context");
                 set_theme.update(|t| {
                     *t = if *t == "dark" {
                         "light".to_string()
@@ -231,9 +236,9 @@ pub fn CommandPalette() -> impl IntoView {
                 });
             }
             PaletteAction::ToggleIntrospection => {
-                let set_show =
-                    use_context::<crate::types::SetShowIntrospection>()
-                        .expect("SetShowIntrospection context").0;
+                let set_show = use_context::<crate::types::SetShowIntrospection>()
+                    .expect("SetShowIntrospection context")
+                    .0;
                 set_show.update(|v| *v = !*v);
             }
         }

@@ -1,3 +1,4 @@
+use crate::types::*;
 /// Leptos server functions for the CoreML Playground API.
 ///
 /// Each function is registered via the `#[server]` macro so Leptos can
@@ -8,16 +9,13 @@
 /// All SQLite operations go through `tokio::task::spawn_blocking` because
 /// `rusqlite::Connection` is not `Send` across `.await` points.
 use leptos::prelude::*;
-use crate::types::*;
 
 // SSR-only imports — the `#[server]` macro generates cfg-gated code, but
 // the body itself also needs access to server-side types.
 #[cfg(feature = "ssr")]
 use {
-    std::sync::Arc,
-    axum::extract::Extension,
-    super::model_registry::ModelRegistry,
-    super::session_store::SessionStore,
+    super::model_registry::ModelRegistry, super::session_store::SessionStore,
+    axum::extract::Extension, std::sync::Arc,
 };
 
 // ---------------------------------------------------------------------------
@@ -27,8 +25,7 @@ use {
 /// Return metadata for every model discovered in the models directory.
 #[server(ListModels)]
 pub async fn list_models() -> Result<Vec<ModelInfo>, ServerFnError> {
-    let Extension(registry) =
-        leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
+    let Extension(registry) = leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
     Ok(registry.list_models().await)
 }
 
@@ -38,12 +35,11 @@ pub async fn list_models() -> Result<Vec<ModelInfo>, ServerFnError> {
 /// unloads the previous one.
 #[server(LoadModel)]
 pub async fn load_model(model_id: String) -> Result<ModelInfo, ServerFnError> {
-    let Extension(registry) =
-        leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
+    let Extension(registry) = leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
     registry
         .load_model(&model_id)
         .await
-        .map_err(|e| ServerFnError::new(e))
+        .map_err(ServerFnError::new)
 }
 
 // ---------------------------------------------------------------------------
@@ -53,27 +49,23 @@ pub async fn load_model(model_id: String) -> Result<ModelInfo, ServerFnError> {
 /// List all chat sessions, ordered by most-recently-updated first.
 #[server(ListSessions)]
 pub async fn list_sessions() -> Result<Vec<Session>, ServerFnError> {
-    let Extension(store) =
-        leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
+    let Extension(store) = leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
 
     tokio::task::spawn_blocking(move || store.list_sessions())
         .await
         .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-        .map_err(|e| ServerFnError::new(e))
+        .map_err(ServerFnError::new)
 }
 
 /// Retrieve all messages for a given session.
 #[server(GetSessionMessages)]
-pub async fn get_session_messages(
-    session_id: String,
-) -> Result<Vec<ChatMessage>, ServerFnError> {
-    let Extension(store) =
-        leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
+pub async fn get_session_messages(session_id: String) -> Result<Vec<ChatMessage>, ServerFnError> {
+    let Extension(store) = leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
 
     tokio::task::spawn_blocking(move || store.get_messages(&session_id))
         .await
         .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-        .map_err(|e| ServerFnError::new(e))
+        .map_err(ServerFnError::new)
 }
 
 /// Create a new chat session for a given model.
@@ -83,10 +75,8 @@ pub async fn get_session_messages(
 /// registry so the session stores a human-readable label.
 #[server(CreateSession)]
 pub async fn create_session(model_id: String) -> Result<Session, ServerFnError> {
-    let Extension(registry) =
-        leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
-    let Extension(store) =
-        leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
+    let Extension(registry) = leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
+    let Extension(store) = leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
 
     let model_name = registry
         .get_model_info(&model_id)
@@ -97,34 +87,29 @@ pub async fn create_session(model_id: String) -> Result<Session, ServerFnError> 
     tokio::task::spawn_blocking(move || store.create_session(&model_id, &model_name))
         .await
         .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-        .map_err(|e| ServerFnError::new(e))
+        .map_err(ServerFnError::new)
 }
 
 /// Rename a session (update its display name).
 #[server(RenameSession)]
-pub async fn rename_session(
-    session_id: String,
-    new_name: String,
-) -> Result<(), ServerFnError> {
-    let Extension(store) =
-        leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
+pub async fn rename_session(session_id: String, new_name: String) -> Result<(), ServerFnError> {
+    let Extension(store) = leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
 
     tokio::task::spawn_blocking(move || store.rename_session(&session_id, &new_name))
         .await
         .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-        .map_err(|e| ServerFnError::new(e))
+        .map_err(ServerFnError::new)
 }
 
 /// Delete a session and all of its messages.
 #[server(DeleteSession)]
 pub async fn delete_session(session_id: String) -> Result<(), ServerFnError> {
-    let Extension(store) =
-        leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
+    let Extension(store) = leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
 
     tokio::task::spawn_blocking(move || store.delete_session(&session_id))
         .await
         .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-        .map_err(|e| ServerFnError::new(e))
+        .map_err(ServerFnError::new)
 }
 
 // ---------------------------------------------------------------------------
@@ -145,10 +130,8 @@ pub async fn send_message(
     session_id: String,
     input: InferenceInput,
 ) -> Result<ChatMessage, ServerFnError> {
-    let Extension(registry) =
-        leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
-    let Extension(store) =
-        leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
+    let Extension(registry) = leptos_axum::extract::<Extension<Arc<ModelRegistry>>>().await?;
+    let Extension(store) = leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
 
     // Look up the session to find its associated model.
     let session = {
@@ -157,7 +140,7 @@ pub async fn send_message(
         tokio::task::spawn_blocking(move || store.get_session(&sid))
             .await
             .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-            .map_err(|e| ServerFnError::new(e))?
+            .map_err(ServerFnError::new)?
             .ok_or_else(|| ServerFnError::new(format!("session not found: {session_id}")))?
     };
 
@@ -177,7 +160,7 @@ pub async fn send_message(
         tokio::task::spawn_blocking(move || store.add_message(&sid, &msg))
             .await
             .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-            .map_err(|e| ServerFnError::new(e))?;
+            .map_err(ServerFnError::new)?;
     }
 
     // Ensure the model is loaded.
@@ -186,7 +169,7 @@ pub async fn send_message(
         registry
             .load_model(&session.model_id)
             .await
-            .map_err(|e| ServerFnError::new(e))?;
+            .map_err(ServerFnError::new)?;
     }
 
     // Run inference — batch or single.
@@ -204,7 +187,7 @@ pub async fn send_message(
                 let start = std::time::Instant::now();
                 let output = super::inference::run_inference_for_api(&registry, &single_input)
                     .await
-                    .map_err(|e| ServerFnError::new(e))?;
+                    .map_err(ServerFnError::new)?;
                 let ms = start.elapsed().as_millis() as u64;
 
                 items.push(BatchItem {
@@ -228,7 +211,7 @@ pub async fn send_message(
             let start = std::time::Instant::now();
             let output = super::inference::run_inference_for_api(&registry, &input)
                 .await
-                .map_err(|e| ServerFnError::new(e))?;
+                .map_err(ServerFnError::new)?;
             let inference_ms = start.elapsed().as_millis() as u64;
 
             ChatMessage {
@@ -248,7 +231,7 @@ pub async fn send_message(
         tokio::task::spawn_blocking(move || store.add_message(&sid, &msg))
             .await
             .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-            .map_err(|e| ServerFnError::new(e))?;
+            .map_err(ServerFnError::new)?;
     }
 
     Ok(model_msg)
@@ -266,21 +249,20 @@ pub async fn send_message(
 pub async fn export_session(
     session_id: String,
 ) -> Result<(String, Vec<ChatMessage>), ServerFnError> {
-    let Extension(store) =
-        leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
+    let Extension(store) = leptos_axum::extract::<Extension<Arc<SessionStore>>>().await?;
 
     let store2 = store.clone();
     let sid = session_id.clone();
     let session = tokio::task::spawn_blocking(move || store2.get_session(&sid))
         .await
         .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-        .map_err(|e| ServerFnError::new(e))?
+        .map_err(ServerFnError::new)?
         .ok_or_else(|| ServerFnError::new(format!("session not found: {session_id}")))?;
 
     let messages = tokio::task::spawn_blocking(move || store.get_messages(&session.id))
         .await
         .map_err(|e| ServerFnError::new(format!("join error: {e}")))?
-        .map_err(|e| ServerFnError::new(e))?;
+        .map_err(ServerFnError::new)?;
 
     Ok((session.model_name, messages))
 }
@@ -290,6 +272,10 @@ pub async fn export_session(
 // ---------------------------------------------------------------------------
 
 /// Convert an `InferenceInput` into a `MessageContent` for persistence.
+///
+/// NOTE: This is a duplicate of `inference::input_to_content` (which has
+/// unit tests). Consolidate when the server function calling convention is
+/// refactored — tracked as tech debt, not this PR.
 #[cfg(feature = "ssr")]
 fn input_to_content(input: &InferenceInput) -> MessageContent {
     match input {
@@ -311,16 +297,17 @@ fn input_to_content(input: &InferenceInput) -> MessageContent {
                 MessageContent::Image {
                     data_base64: first.data_base64.clone(),
                     mime_type: first.mime_type.clone(),
-                    caption: Some(
-                        prompt
-                            .clone()
-                            .unwrap_or_else(|| format!("Batch: {} images", images.len())),
-                    ),
+                    caption: Some(prompt.clone().unwrap_or_else(|| {
+                        let n = images.len();
+                        if n == 1 {
+                            "Batch: 1 image".to_string()
+                        } else {
+                            format!("Batch: {} images", n)
+                        }
+                    })),
                 }
             } else {
-                MessageContent::Text(
-                    prompt.clone().unwrap_or_else(|| "Empty batch".to_string()),
-                )
+                MessageContent::Text(prompt.clone().unwrap_or_else(|| "Empty batch".to_string()))
             }
         }
     }

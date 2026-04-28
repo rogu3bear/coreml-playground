@@ -64,7 +64,10 @@ fn test_create_session() {
         "updated_at should be within 5 seconds of now"
     );
 
-    assert_eq!(session.message_count, 0, "new session should have 0 messages");
+    assert_eq!(
+        session.message_count, 0,
+        "new session should have 0 messages"
+    );
     assert!(
         session.preview.is_empty(),
         "new session should have empty preview"
@@ -101,14 +104,8 @@ fn test_list_sessions_ordering() {
         sessions[0].id, s3.id,
         "first session in list should be the most recently created (s3)"
     );
-    assert_eq!(
-        sessions[1].id, s2.id,
-        "second session in list should be s2"
-    );
-    assert_eq!(
-        sessions[2].id, s1.id,
-        "third session in list should be s1"
-    );
+    assert_eq!(sessions[1].id, s2.id, "second session in list should be s2");
+    assert_eq!(sessions[2].id, s1.id, "third session in list should be s1");
 
     // Verify descending updated_at.
     assert!(
@@ -144,7 +141,10 @@ fn test_add_and_get_messages() {
                 caption: Some("a test image".into()),
             },
         ),
-        make_msg(MessageRole::Model, MessageContent::Text("Classified!".into())),
+        make_msg(
+            MessageRole::Model,
+            MessageContent::Text("Classified!".into()),
+        ),
         make_msg(
             MessageRole::System,
             MessageContent::Streaming {
@@ -199,7 +199,10 @@ fn test_add_and_get_messages() {
         ref caption,
     } = retrieved[2].content
     {
-        assert_eq!(data_base64, "aGVsbG8=", "image data_base64 should roundtrip");
+        assert_eq!(
+            data_base64, "aGVsbG8=",
+            "image data_base64 should roundtrip"
+        );
         assert_eq!(mime_type, "image/png", "image mime_type should roundtrip");
         assert_eq!(
             caption.as_deref(),
@@ -372,5 +375,271 @@ fn test_empty_database() {
     assert!(
         messages.is_empty(),
         "get_messages for nonexistent session should return empty vec"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// get_session
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_get_session_found() {
+    let (store, _tmp) = temp_store();
+
+    let created = store
+        .create_session("model-get", "GetModel")
+        .expect("create session");
+
+    let found = store
+        .get_session(&created.id)
+        .expect("get_session should succeed")
+        .expect("session should be found");
+
+    assert_eq!(found.id, created.id);
+    assert_eq!(found.model_id, "model-get");
+    assert_eq!(found.model_name, "GetModel");
+    assert_eq!(found.message_count, 0);
+}
+
+#[test]
+fn test_get_session_not_found() {
+    let (store, _tmp) = temp_store();
+
+    let result = store
+        .get_session("nonexistent-id")
+        .expect("get_session should not error for missing id");
+
+    assert!(result.is_none(), "nonexistent session should return None");
+}
+
+// ---------------------------------------------------------------------------
+// rename_session
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_rename_session_success() {
+    let (store, _tmp) = temp_store();
+
+    let session = store
+        .create_session("model-rn", "RenameModel")
+        .expect("create session");
+
+    // Small sleep so updated_at can advance.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    store
+        .rename_session(&session.id, "My Custom Name")
+        .expect("rename_session should succeed");
+
+    // Verify the name appears in list_sessions preview.
+    let sessions = store.list_sessions().expect("list_sessions");
+    let found = sessions
+        .iter()
+        .find(|s| s.id == session.id)
+        .expect("session should still exist after rename");
+
+    assert_eq!(
+        found.preview, "My Custom Name",
+        "preview should reflect the new display_name"
+    );
+
+    // Verify updated_at advanced.
+    assert!(
+        found.updated_at > session.updated_at,
+        "updated_at should advance after rename (before={}, after={})",
+        session.updated_at,
+        found.updated_at
+    );
+}
+
+#[test]
+fn test_rename_session_not_found() {
+    let (store, _tmp) = temp_store();
+
+    let result = store.rename_session("nonexistent-id", "New Name");
+    assert!(
+        result.is_err(),
+        "renaming a nonexistent session should return an error"
+    );
+    let err = result.unwrap_err();
+    assert!(err.contains("not found"), "got: {}", err);
+}
+
+#[test]
+fn test_rename_session_empty_rejected() {
+    let (store, _tmp) = temp_store();
+    let session = store
+        .create_session("model-1", "Test Model")
+        .expect("create session");
+    let err = store.rename_session(&session.id, "").unwrap_err();
+    assert!(err.contains("empty"), "got: {}", err);
+}
+
+#[test]
+fn test_rename_session_whitespace_rejected() {
+    let (store, _tmp) = temp_store();
+    let session = store
+        .create_session("model-1", "Test Model")
+        .expect("create session");
+    let err = store.rename_session(&session.id, "   ").unwrap_err();
+    assert!(err.contains("empty"), "got: {}", err);
+}
+
+#[test]
+fn test_rename_session_trims_whitespace() {
+    let (store, _tmp) = temp_store();
+    let session = store
+        .create_session("model-1", "Test Model")
+        .expect("create session");
+    store
+        .rename_session(&session.id, "  New Name  ")
+        .expect("rename with surrounding whitespace should succeed");
+    let updated = store
+        .get_session(&session.id)
+        .expect("get_session should succeed")
+        .expect("session should exist");
+    assert_eq!(updated.preview, "New Name");
+}
+
+// ---------------------------------------------------------------------------
+// save_comparison + get_comparisons
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_comparison_roundtrip() {
+    let (store, _tmp) = temp_store();
+
+    let session = store
+        .create_session("model-cmp", "CompareModel")
+        .expect("create session");
+
+    // Save two comparisons.
+    let id1 = store
+        .save_comparison(
+            &session.id,
+            r#"{"text":"hello"}"#,
+            "model-a",
+            "model-b",
+            Some("msg-left-1"),
+            Some("msg-right-1"),
+        )
+        .expect("save_comparison 1");
+
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    let id2 = store
+        .save_comparison(
+            &session.id,
+            r#"{"text":"world"}"#,
+            "model-c",
+            "model-d",
+            None,
+            None,
+        )
+        .expect("save_comparison 2");
+
+    // Retrieve and verify.
+    let comparisons = store
+        .get_comparisons(&session.id)
+        .expect("get_comparisons should succeed");
+
+    assert_eq!(comparisons.len(), 2, "should have 2 comparisons");
+
+    // Ordered by created_at ASC, so id1 first.
+    assert_eq!(comparisons[0].id, id1);
+    assert_eq!(comparisons[0].input_json, r#"{"text":"hello"}"#);
+    assert_eq!(comparisons[0].left_model_id, "model-a");
+    assert_eq!(comparisons[0].right_model_id, "model-b");
+    assert_eq!(
+        comparisons[0].left_message_id.as_deref(),
+        Some("msg-left-1")
+    );
+    assert_eq!(
+        comparisons[0].right_message_id.as_deref(),
+        Some("msg-right-1")
+    );
+
+    assert_eq!(comparisons[1].id, id2);
+    assert_eq!(comparisons[1].input_json, r#"{"text":"world"}"#);
+    assert_eq!(comparisons[1].left_model_id, "model-c");
+    assert_eq!(comparisons[1].right_model_id, "model-d");
+    assert!(comparisons[1].left_message_id.is_none());
+    assert!(comparisons[1].right_message_id.is_none());
+
+    // Ordering: first comparison should have earlier timestamp.
+    assert!(
+        comparisons[0].created_at <= comparisons[1].created_at,
+        "comparisons should be ordered by created_at ASC"
+    );
+}
+
+#[test]
+fn test_delete_session_cleans_comparisons() {
+    let (store, _tmp) = temp_store();
+
+    let session = store
+        .create_session("model-cmp-del", "CmpDeleteModel")
+        .expect("create session");
+
+    // Save two comparisons.
+    store
+        .save_comparison(
+            &session.id,
+            r#"{"text":"hello"}"#,
+            "model-a",
+            "model-b",
+            None,
+            None,
+        )
+        .expect("save_comparison 1");
+
+    store
+        .save_comparison(
+            &session.id,
+            r#"{"text":"world"}"#,
+            "model-c",
+            "model-d",
+            None,
+            None,
+        )
+        .expect("save_comparison 2");
+
+    // Verify comparisons exist.
+    let before = store
+        .get_comparisons(&session.id)
+        .expect("get_comparisons before delete");
+    assert_eq!(before.len(), 2, "should have 2 comparisons before delete");
+
+    // Delete the session.
+    store
+        .delete_session(&session.id)
+        .expect("delete_session should succeed");
+
+    // Comparisons should be gone.
+    let after = store
+        .get_comparisons(&session.id)
+        .expect("get_comparisons after delete");
+    assert!(
+        after.is_empty(),
+        "comparisons for deleted session should be empty, got {} comparisons",
+        after.len()
+    );
+}
+
+#[test]
+fn test_get_comparisons_empty() {
+    let (store, _tmp) = temp_store();
+
+    let session = store
+        .create_session("model-empty-cmp", "EmptyCompare")
+        .expect("create session");
+
+    let comparisons = store
+        .get_comparisons(&session.id)
+        .expect("get_comparisons should succeed");
+
+    assert!(
+        comparisons.is_empty(),
+        "session with no comparisons should return empty vec"
     );
 }
